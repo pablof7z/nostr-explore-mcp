@@ -1,0 +1,38 @@
+{
+  "name": "nostr-explore-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for exploring Nostr protocol data",
+  "main": "dist/index.js",
+  "bin": {
+    "nostr-explore-mcp": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --minify",
+    "dev": "bun run src/index.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "nostr",
+    "ndk"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@nostr-dev-kit/ndk": "^2.10.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ]
+}
