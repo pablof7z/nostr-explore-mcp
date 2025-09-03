@@ -10,6 +10,7 @@ import { userRootNotesTool } from "./userRootNotes.js";
 import { NostrTool } from "./types.js";
 import { conversationTracker } from './nostr/conversationTracker.js';
 import { contentPublisher } from './nostr/contentPublisher.js';
+import { nostrTweetPublisher } from './nostrTweetPublisher.js';
 
 const tools: NostrTool[] = [
     getConversationTool,
@@ -19,7 +20,8 @@ const tools: NostrTool[] = [
     publishNotificationTool,
     userRootNotesTool,
     conversationTracker,
-    contentPublisher
+    contentPublisher,
+    nostrTweetPublisher
 ];
 
 // Helper function to get tool by name
@@ -37,5 +39,6 @@ export {
     userRootNotesTool,
     conversationTracker,
     contentPublisher,
+    nostrTweetPublisher,
     initializeSubscriptionManager
 }

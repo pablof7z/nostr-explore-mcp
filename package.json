@@ -1,6 +1,6 @@
 {
   "name": "nostr-explore-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for exploring Nostr protocol data",
   "main": "dist/index.js",
   "bin": {
@@ -18,7 +18,11 @@
     "nostr",
     "ndk"
   ],
-  "author": "",
+  "author": "Pablo Fernandez",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pablof7z/nostr-explore-mcp.git"
+  },
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
