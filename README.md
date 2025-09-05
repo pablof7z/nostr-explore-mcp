@@ -2,6 +2,11 @@
 
 A Model Context Protocol (MCP) server that enables AI assistants to explore and interact with the Nostr network, focusing on conversation discovery, content publishing, and notification monitoring.
 
+## Version 0.2.0 Changes
+- Renamed `nostr_tweet_publisher` to `nostr_note_publisher` for better clarity
+- Added flexible authentication: tools now support both environment variable (`NOSTR_PRIVATE_KEY`) and direct nsec parameter
+- Improved code organization with shared signer utility for DRY principle
+
 ## What You Can Do
 
 This MCP server provides tools for:
@@ -63,7 +68,16 @@ The server connects to the following Nostr relays by default:
 - wss://relay.primal.net
 - wss://tenex.chat
 
-No additional configuration is required for basic usage. Private keys for publishing are provided as parameters to the publishing tools.
+### Authentication for Publishing
+
+You can provide signing credentials in two ways:
+
+1. **Environment Variable (Recommended for single-user setups):**
+   Set `NOSTR_PRIVATE_KEY` in your environment with your private key (hex or nsec format).
+   When set, the nsec parameter becomes optional in publishing tools.
+
+2. **Direct Parameter:**
+   Pass the `nsec` parameter directly to publishing tools. This takes precedence over the environment variable.
 
 ## Usage
 
@@ -73,9 +87,17 @@ Once configured, the MCP server provides tools that can be accessed by AI assist
 
 **Publishing a short note:**
 ```typescript
-await nostr_tweet_publisher({
+// With nsec parameter
+await nostr_note_publisher({
   content: "Hello Nostr!",
-  nsec: "your-nsec-key",
+  nsec: "your-nsec-key",  // Optional if NOSTR_PRIVATE_KEY is set
+  hashtags: ["introductions"],
+  mentions: ["npub1..."]
+});
+
+// With environment variable set (no nsec needed)
+await nostr_note_publisher({
+  content: "Hello Nostr!",
   hashtags: ["introductions"],
   mentions: ["npub1..."]
 });
@@ -83,7 +105,18 @@ await nostr_tweet_publisher({
 
 **Publishing long-form content:**
 ```typescript
-await mcp__nostrbook__nostr_content_publisher({
+// With nsec parameter
+await nostr_content_publisher({
+  title: "Understanding Nostr",
+  content: "Full article content in markdown...",
+  summary: "An introduction to Nostr",
+  image: "https://example.com/header.jpg",
+  tags: [["t", "nostr"], ["t", "decentralization"]],
+  nsec: "your-nsec-key"  // Optional if NOSTR_PRIVATE_KEY is set
+});
+
+// With environment variable set (no nsec needed)
+await nostr_content_publisher({
   title: "Understanding Nostr",
   content: "Full article content in markdown...",
   summary: "An introduction to Nostr",
@@ -94,7 +127,7 @@ await mcp__nostrbook__nostr_content_publisher({
 
 **Searching for conversations:**
 ```typescript
-await mcp__nostrbook__nostr_conversation_tracker({
+await nostr_conversation_tracker({
   query: "#bitcoin",
   limit: 10,
   thread_depth: 2
@@ -114,12 +147,12 @@ The server provides the following tools:
 
 ### Conversation Tools
 - `get_conversation` - Retrieve a full conversation thread from any Nostr event
-- `mcp__nostrbook__nostr_conversation_tracker` - Search and retrieve conversation threads by keywords/hashtags
+- `nostr_conversation_tracker` - Search and retrieve conversation threads by keywords/hashtags
 - `user_root_notes` - Get all root posts from a specific user
 
 ### Publishing Tools
-- `nostr_tweet_publisher` - Publish short notes with hashtags, mentions, and replies
-- `mcp__nostrbook__nostr_content_publisher` - Publish long-form articles with markdown support
+- `nostr_note_publisher` - Publish short notes with hashtags, mentions, and replies
+- `nostr_content_publisher` - Publish long-form articles with markdown support
 
 ### Notification Tools
 - `start_notification_monitoring` - Start monitoring mentions for a specific pubkey
@@ -143,16 +176,18 @@ npm test
 ```
 nostr-explore-mcp/
 ├── src/
-│   ├── index.ts                  # Main server entry point
-│   ├── tools/                    # Tool implementations
-│   │   ├── getConversation.ts    # Conversation retrieval
-│   │   ├── conversationTracker.ts # Conversation search
-│   │   ├── contentPublisher.ts   # Long-form publishing
-│   │   ├── nostrTweetPublisher.ts # Short note publishing
-│   │   ├── notifications.ts      # Notification management
-│   │   └── userRootNotes.ts      # User timeline
-│   └── notifications/            # Notification helpers
-├── dist/                         # Compiled JavaScript
+│   ├── index.ts                    # Main server entry point
+│   ├── tools/                      # Tool implementations
+│   │   ├── getConversation.ts      # Conversation retrieval
+│   │   ├── nostr/
+│   │   │   ├── conversationTracker.ts # Conversation search
+│   │   │   └── contentPublisher.ts    # Long-form publishing
+│   │   ├── nostrNotePublisher.ts   # Short note publishing
+│   │   ├── notifications.ts        # Notification management
+│   │   └── userRootNotes.ts        # User timeline
+│   └── utils/                      # Shared utilities
+│       └── signer.ts               # Shared signing logic
+├── dist/                           # Compiled JavaScript
 ├── package.json
 └── tsconfig.json
 ```

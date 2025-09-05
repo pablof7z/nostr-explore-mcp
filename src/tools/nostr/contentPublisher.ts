@@ -1,6 +1,6 @@
 import { NostrTool } from "../types.js";
-import { NDKArticle, NDKEvent, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
-import { nip19 } from "nostr-tools";
+import { NDKArticle } from "@nostr-dev-kit/ndk";
+import { createSigner, getNsecSchema, isNsecRequired } from "../../utils/signer.js";
 
 interface ContentPublisherParams {
   title: string;
@@ -9,6 +9,7 @@ interface ContentPublisherParams {
   image?: string;
   tags?: Array<Array<string>>;
   published_at?: number;
+  nsec?: string;
 }
 
 export const contentPublisher: NostrTool = {
@@ -48,8 +49,9 @@ export const contentPublisher: NostrTool = {
           type: "number",
           description: "A Unix timestamp for the publication date. Will be used in the 'published_at' tag. Defaults to the current time",
         },
+        ...(getNsecSchema() ? { nsec: getNsecSchema() } : {}),
       },
-      required: ["title", "content"],
+      required: ["title", "content", ...(isNsecRequired() ? ["nsec"] : [])],
     },
   },
   handler: async (args, ndk) => {
@@ -59,13 +61,14 @@ export const contentPublisher: NostrTool = {
       summary, 
       image, 
       tags = [], 
-      published_at 
+      published_at,
+      nsec 
     } = args as ContentPublisherParams;
 
-    // Check if private key is available
-    const privateKey = process.env.NOSTR_PRIVATE_KEY;
-    if (!privateKey) {
-      throw new Error("NOSTR_PRIVATE_KEY environment variable is not set. Please set it to publish content.");
+    // Create signer using utility function
+    const signer = createSigner(nsec);
+    if (!signer) {
+      throw new Error("No signing credentials available. Please provide an nsec or set NOSTR_PRIVATE_KEY environment variable.");
     }
 
     // Create the event
@@ -101,10 +104,7 @@ export const contentPublisher: NostrTool = {
 
     // Sign and publish the event
     try {
-      // Set the private key for signing
-      ndk.signer = new NDKPrivateKeySigner(privateKey);
-      
-      await event.sign();
+      await event.sign(signer);
       await event.publish();
 
       return { naddr: event.encode() };

@@ -1,19 +1,20 @@
 import { NostrTool } from './types.js';
-import NDK, { NDKEvent, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
+import NDK, { NDKEvent } from '@nostr-dev-kit/ndk';
 import { nip19 } from 'nostr-tools';
+import { createSigner, getNsecSchema, isNsecRequired } from '../utils/signer.js';
 
-interface TweetPublisherArgs {
+interface NotePublisherArgs {
   content: string;
-  nsec: string;
+  nsec?: string;
   reply_to?: string;
   mentions?: string[];
   hashtags?: string[];
 }
 
-export const nostrTweetPublisher: NostrTool = {
+export const nostrNotePublisher: NostrTool = {
   schema: {
-    name: 'nostr_tweet_publisher',
-    description: 'Publish short notes (tweets) to Nostr network using kind:1 standard with nsec for signing',
+    name: 'nostr_note_publisher',
+    description: 'Publish short notes to Nostr network using kind:1 standard with nsec for signing',
     inputSchema: {
       type: 'object',
       properties: {
@@ -21,10 +22,7 @@ export const nostrTweetPublisher: NostrTool = {
           type: 'string',
           description: 'The note content to publish'
         },
-        nsec: {
-          type: 'string',
-          description: 'The nsec (Nostr private key in bech32 format) for signing the event'
-        },
+        ...(getNsecSchema() ? { nsec: getNsecSchema() } : {}),
         reply_to: {
           type: 'string',
           description: 'Optional event ID to reply to (creates an e tag)'
@@ -44,13 +42,19 @@ export const nostrTweetPublisher: NostrTool = {
           description: 'Array of hashtags to include (without the # symbol)'
         }
       },
-      required: ['content', 'nsec']
+      required: ['content', ...(isNsecRequired() ? ['nsec'] : [])]
     }
   },
   
-  handler: async (args: TweetPublisherArgs, ndk: NDK) => {
+  handler: async (args: NotePublisherArgs, ndk: NDK) => {
     try {
       const { content, nsec, reply_to, mentions, hashtags } = args;
+
+      // Create signer using utility function
+      const signer = createSigner(nsec);
+      if (!signer) {
+        throw new Error('No signing credentials available. Please provide an nsec or set NOSTR_PRIVATE_KEY environment variable.');
+      }
 
       let replyToEvent: NDKEvent | null = null;
 
@@ -59,9 +63,6 @@ export const nostrTweetPublisher: NostrTool = {
           replyToEvent = await ndk.fetchEvent(reply_to);
         } catch {}
       }
-      
-      // Create a signer with the private key
-      const signer = new NDKPrivateKeySigner(nsec);
       
       // Create a new note event (kind 1)
       const event = replyToEvent ? replyToEvent.reply() : new NDKEvent(ndk);
@@ -101,14 +102,14 @@ export const nostrTweetPublisher: NostrTool = {
       await event.sign(signer);
       await event.publish();
 
-      return { nevent: event.encode() };
+      return { content: {nevent: event.encode()} };
       
     } catch (error) {
-      console.error('Error publishing tweet:', error);
+      console.error('Error publishing note:', error);
       return {
         content: [{
           type: 'text',
-          text: `Error publishing tweet: ${error instanceof Error ? error.message : 'Unknown error'}`
+          text: `Error publishing note: ${error instanceof Error ? error.message : 'Unknown error'}`
         }],
         isError: true
       };
