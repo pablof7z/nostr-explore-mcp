@@ -51,58 +51,21 @@ export const nostrTweetPublisher: NostrTool = {
   handler: async (args: TweetPublisherArgs, ndk: NDK) => {
     try {
       const { content, nsec, reply_to, mentions, hashtags } = args;
-      
-      // Validate and decode nsec
-      let privateKeyHex: string;
-      try {
-        const decoded = nip19.decode(nsec);
-        if (decoded.type !== 'nsec') {
-          throw new Error('Invalid nsec format');
-        }
-        privateKeyHex = decoded.data as string;
-      } catch (error) {
-        throw new Error(`Invalid nsec: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      let replyToEvent: NDKEvent | null = null;
+
+      if (reply_to) {
+        try {
+          replyToEvent = await ndk.fetchEvent(reply_to);
+        } catch {}
       }
       
       // Create a signer with the private key
-      const signer = new NDKPrivateKeySigner(privateKeyHex);
-      const user = await signer.user();
+      const signer = new NDKPrivateKeySigner(nsec);
       
       // Create a new note event (kind 1)
-      const event = new NDKEvent(ndk);
-      event.kind = 1; // Text note
-      event.pubkey = user.pubkey;
+      const event = replyToEvent ? replyToEvent.reply() : new NDKEvent(ndk);
       event.content = content;
-      event.created_at = Math.floor(Date.now() / 1000);
-      
-      // Build tags array
-      event.tags = [];
-      
-      // Add reply tag if replying to another event
-      if (reply_to) {
-        // Decode if it's a note1/nevent format
-        let eventId = reply_to;
-        if (reply_to.startsWith('note1')) {
-          try {
-            const decoded = nip19.decode(reply_to);
-            if (decoded.type === 'note') {
-              eventId = decoded.data as string;
-            }
-          } catch {
-            // Use as-is if decode fails
-          }
-        } else if (reply_to.startsWith('nevent1')) {
-          try {
-            const decoded = nip19.decode(reply_to);
-            if (decoded.type === 'nevent') {
-              eventId = decoded.data.id;
-            }
-          } catch {
-            // Use as-is if decode fails
-          }
-        }
-        event.tags.push(['e', eventId, '', 'reply']);
-      }
       
       // Add mention tags
       if (mentions && mentions.length > 0) {
@@ -136,53 +99,9 @@ export const nostrTweetPublisher: NostrTool = {
       
       // Sign the event
       await event.sign(signer);
-      
-      // Publish the event
       await event.publish();
-      
-      // Generate noteId (bech32 encoded event id)
-      const noteId = nip19.noteEncode(event.id);
-      
-      // Generate nevent (includes relay hints)
-      const neventData = {
-        id: event.id,
-        relays: ['wss://relay.primal.net', 'wss://tenex.chat'],
-        author: event.pubkey
-      };
-      const nevent = nip19.neventEncode(neventData);
-      
-      // Generate npub for author
-      const npub = nip19.npubEncode(event.pubkey);
-      
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            success: true,
-            eventId: event.id,
-            noteId,
-            nevent,
-            author: {
-              pubkey: event.pubkey,
-              npub
-            },
-            published_at: event.created_at,
-            metadata: {
-              content_length: content.length,
-              reply_to: reply_to || null,
-              mentions: mentions || [],
-              hashtags: hashtags || [],
-              tags_count: event.tags.length
-            },
-            urls: {
-              primal: `https://primal.net/e/${noteId}`,
-              coracle: `https://coracle.social/${noteId}`,
-              snort: `https://snort.social/e/${noteId}`,
-              nostrud: `https://nostrud.com/${nevent}`
-            }
-          }, null, 2)
-        }]
-      };
+
+      return { nevent: event.encode() };
       
     } catch (error) {
       console.error('Error publishing tweet:', error);

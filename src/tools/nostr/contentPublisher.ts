@@ -1,5 +1,5 @@
 import { NostrTool } from "../types.js";
-import { NDKEvent } from "@nostr-dev-kit/ndk";
+import { NDKArticle, NDKEvent, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 
 interface ContentPublisherParams {
@@ -69,22 +69,19 @@ export const contentPublisher: NostrTool = {
     }
 
     // Create the event
-    const event = new NDKEvent(ndk);
-    event.kind = 30023; // Long-form content
+    const event = new NDKArticle(ndk);
     event.content = content;
     
     // Add required tags
-    event.tags = [
-      ["title", title],
-    ];
+    event.title = title;
 
     // Add optional tags
     if (summary) {
-      event.tags.push(["summary", summary]);
+      event.summary = summary;
     }
     
     if (image) {
-      event.tags.push(["image", image]);
+      event.image = image;
     }
     
     if (published_at) {
@@ -102,69 +99,15 @@ export const contentPublisher: NostrTool = {
       }
     }
 
-    // Add a 'd' tag for parameterized replaceable events
-    // Create a slug from the title
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60); // Limit slug length
-    
-    event.tags.push(["d", slug]);
-
     // Sign and publish the event
     try {
       // Set the private key for signing
-      ndk.signer = await ndk.createSigner(privateKey);
+      ndk.signer = new NDKPrivateKeySigner(privateKey);
       
       await event.sign();
       await event.publish();
 
-      // Create identifiers for the response
-      const eventId = event.id;
-      const noteId = nip19.noteEncode(event.id);
-      const nevent = nip19.neventEncode({
-        id: event.id,
-        relays: ndk.explicitRelayUrls || [],
-      });
-      
-      // Create naddr for parameterized replaceable events
-      const naddr = nip19.naddrEncode({
-        kind: 30023,
-        pubkey: event.pubkey,
-        identifier: slug,
-        relays: ndk.explicitRelayUrls || [],
-      });
-
-      return {
-        eventId,
-        noteId,
-        nevent,
-        naddr,
-        slug,
-        published: true,
-        event: {
-          id: event.id,
-          pubkey: event.pubkey,
-          created_at: event.created_at,
-          kind: event.kind,
-          tags: event.tags,
-          content: event.content,
-          sig: event.sig,
-        },
-        metadata: {
-          title,
-          summary: summary || undefined,
-          image: image || undefined,
-          published_at: event.tags.find(tag => tag[0] === "published_at")?.[1],
-          custom_tags: tags.length > 0 ? tags : undefined,
-        },
-        urls: {
-          primal: `https://primal.net/e/${noteId}`,
-          nostrud: `https://nostrud.com/${naddr}`,
-          habla: `https://habla.news/a/${naddr}`,
-        },
-      };
+      return { naddr: event.encode() };
     } catch (error) {
       throw new Error(`Failed to publish content: ${error instanceof Error ? error.message : String(error)}`);
     }
