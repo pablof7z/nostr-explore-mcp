@@ -99,7 +99,12 @@ export const nostrNotePublisher: NostrTool = {
       }
       
       // Sign the event
-      await event.sign(signer);
+      try {
+        await event.sign(signer);
+      } catch (e) {
+        console.error("Error signing event", error)
+        console.error("Event", event.inspect)
+      }
       await event.publish();
 
       return { content: {nevent: event.encode()} };
