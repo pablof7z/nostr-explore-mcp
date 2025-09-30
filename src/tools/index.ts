@@ -1,29 +1,25 @@
 import { getConversationTool } from "./getConversation.js";
-import { 
+import {
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    getNotificationsTool,
     publishNotificationTool,
-    initializeSubscriptionManager 
+    initializeSubscriptionManager
 } from "./notifications.js";
-import { userRootNotesTool } from "./userRootNotes.js";
 import { NostrTool } from "./types.js";
 import { conversationTracker } from './nostr/conversationTracker.js';
-import { contentPublisher } from './nostr/contentPublisher.js';
-import { nostrNotePublisher } from './nostrNotePublisher.js';
-import { rawPublish } from './nostr/rawPublish.js';
+import { publishArticle } from './nostr/contentPublisher.js';
+import { publishNote } from './nostrNotePublisher.js';
+import { publishRaw } from './nostr/rawPublish.js';
 
 const tools: NostrTool[] = [
     getConversationTool,
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    getNotificationsTool,
     publishNotificationTool,
-    userRootNotesTool,
     conversationTracker,
-    contentPublisher,
-    nostrNotePublisher,
-    rawPublish
+    publishArticle,
+    publishNote,
+    publishRaw
 ];
 
 // Helper function to get tool by name
@@ -36,12 +32,10 @@ export {
     getConversationTool,
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    getNotificationsTool,
     publishNotificationTool,
-    userRootNotesTool,
     conversationTracker,
-    contentPublisher,
-    nostrNotePublisher,
-    rawPublish,
+    publishArticle,
+    publishNote,
+    publishRaw,
     initializeSubscriptionManager
 }

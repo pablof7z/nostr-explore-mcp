@@ -11,9 +11,9 @@ interface NotePublisherArgs {
   hashtags?: string[];
 }
 
-export const nostrNotePublisher: NostrTool = {
+export const publishNote: NostrTool = {
   schema: {
-    name: 'nostr_note_publisher',
+    name: 'nostr_publish_note',
     description: 'Publish short notes to Nostr network using kind:1 standard with nsec for signing',
     inputSchema: {
       type: 'object',

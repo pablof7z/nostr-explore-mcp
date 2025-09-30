@@ -12,9 +12,9 @@ interface ContentPublisherParams {
   nsec?: string;
 }
 
-export const contentPublisher: NostrTool = {
+export const publishArticle: NostrTool = {
   schema: {
-    name: "nostr_content_publisher",
+    name: "nostr_publish_article",
     description: "Publishes long-form content to the Nostr network using the kind:30023 standard for articles",
     inputSchema: {
       type: "object",
@@ -114,4 +114,4 @@ export const contentPublisher: NostrTool = {
   },
 };
 
-export default contentPublisher;
+export default publishArticle;

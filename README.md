@@ -3,7 +3,7 @@
 A Model Context Protocol (MCP) server that enables AI assistants to explore and interact with the Nostr network, focusing on conversation discovery, content publishing, and notification monitoring.
 
 ## Version 0.2.0 Changes
-- Renamed `nostr_tweet_publisher` to `nostr_note_publisher` for better clarity
+- Renamed `nostr_tweet_publisher` to `nostr_publish_note` for better clarity
 - Added flexible authentication: tools now support both environment variable (`NOSTR_PRIVATE_KEY`) and direct nsec parameter
 - Improved code organization with shared signer utility for DRY principle
 
@@ -91,7 +91,7 @@ Once configured, the MCP server provides tools that can be accessed by AI assist
 **Publishing a short note:**
 ```typescript
 // With nsec parameter
-await nostr_note_publisher({
+await nostr_publish_note({
   content: "Hello Nostr!",
   nsec: "your-nsec-key",  // Optional if NOSTR_PRIVATE_KEY is set
   hashtags: ["introductions"],
@@ -99,7 +99,7 @@ await nostr_note_publisher({
 });
 
 // With environment variable set (no nsec needed)
-await nostr_note_publisher({
+await nostr_publish_note({
   content: "Hello Nostr!",
   hashtags: ["introductions"],
   mentions: ["npub1..."]
@@ -109,7 +109,7 @@ await nostr_note_publisher({
 **Publishing long-form content:**
 ```typescript
 // With nsec parameter
-await nostr_content_publisher({
+await nostr_publish_article({
   title: "Understanding Nostr",
   content: "Full article content in markdown...",
   summary: "An introduction to Nostr",
@@ -119,7 +119,7 @@ await nostr_content_publisher({
 });
 
 // With environment variable set (no nsec needed)
-await nostr_content_publisher({
+await nostr_publish_article({
   title: "Understanding Nostr",
   content: "Full article content in markdown...",
   summary: "An introduction to Nostr",
@@ -154,8 +154,8 @@ The server provides the following tools:
 - `user_root_notes` - Get all root posts from a specific user
 
 ### Publishing Tools
-- `nostr_note_publisher` - Publish short notes with hashtags, mentions, and replies
-- `nostr_content_publisher` - Publish long-form articles with markdown support
+- `nostr_publish_note` - Publish short notes with hashtags, mentions, and replies
+- `nostr_publish_article` - Publish long-form articles with markdown support
 
 ### Notification Tools
 - `start_notification_monitoring` - Start monitoring mentions for a specific pubkey

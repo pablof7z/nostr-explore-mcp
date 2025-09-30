@@ -11,6 +11,8 @@ import { z } from "zod";
 import { tools, getToolByName } from "./tools/index.js";
 import { initializeSubscriptionManager } from "./tools/notifications.js";
 import { createFeedResourceTemplate } from "./resources/feed.js";
+import { createUserNotesResourceTemplate } from "./resources/userNotes.js";
+import { createNotificationsResourceTemplate } from "./resources/notifications.js";
 import { ResourceSubscriptionManager } from "./resources/subscriptionManager.js";
 
 const RELAYS = [
@@ -105,17 +107,41 @@ tools.forEach(tool => {
   );
 });
 
-// Register the feed resource template
-const { template, readCallback } = createFeedResourceTemplate(ndk);
+// Register resource templates
+const feedResource = createFeedResourceTemplate(ndk);
 mcpServer.registerResource(
   "nostr-feed",
-  template,
+  feedResource.template,
   {
     title: "Nostr Event Feed",
     description: "Subscribe to a stream of Nostr events from a specific user, optionally filtered by event kinds",
     mimeType: "application/x-ndjson"
   },
-  readCallback
+  feedResource.readCallback
+);
+
+const userNotesResource = createUserNotesResourceTemplate(ndk);
+mcpServer.registerResource(
+  "nostr-user-notes",
+  userNotesResource.template,
+  {
+    title: "User Root Notes",
+    description: "Get all root notes (kind:1 events without 'e' tags) from a specific Nostr user",
+    mimeType: "application/x-ndjson"
+  },
+  userNotesResource.readCallback
+);
+
+const notificationsResource = createNotificationsResourceTemplate(ndk);
+mcpServer.registerResource(
+  "nostr-notifications",
+  notificationsResource.template,
+  {
+    title: "Agent Notifications",
+    description: "Retrieve stored notifications for a monitored agent",
+    mimeType: "application/x-ndjson"
+  },
+  notificationsResource.readCallback
 );
 
 async function main() {
@@ -128,11 +154,23 @@ async function main() {
   // Initialize resource subscription manager
   resourceSubscriptionManager = new ResourceSubscriptionManager(ndk);
 
-  // Set up subscription handlers
-  mcpServer.setRequestHandler({
-    method: 'resources/subscribe'
-  }, async (request) => {
-    const uri = request.params?.uri as string;
+  // Set up subscription handlers using the underlying server
+  const SubscribeRequestSchema = z.object({
+    method: z.literal('resources/subscribe'),
+    params: z.object({
+      uri: z.string(),
+    }).optional(),
+  });
+
+  const UnsubscribeRequestSchema = z.object({
+    method: z.literal('resources/unsubscribe'),
+    params: z.object({
+      uri: z.string(),
+    }).optional(),
+  });
+
+  mcpServer.server.setRequestHandler(SubscribeRequestSchema, async (request) => {
+    const uri = request.params?.uri;
     if (!uri) {
       throw new Error('Missing required parameter: uri');
     }
@@ -144,28 +182,16 @@ async function main() {
     // Subscribe and send notifications when updates occur
     resourceSubscriptionManager.subscribe(uri, (updatedUri, event) => {
       // Send notification to client with event content
-      mcpServer.sendNotification({
-        method: 'notifications/resources/updated',
-        params: {
-          uri: updatedUri,
-          content: JSON.stringify({
-            created_at: event.created_at,
-            content: event.content,
-            kind: event.kind,
-            pubkey: event.pubkey,
-            tags: event.tags,
-          })
-        }
+      mcpServer.server.sendResourceUpdated({
+        uri: updatedUri,
       });
     });
 
     return {};
   });
 
-  mcpServer.setRequestHandler({
-    method: 'resources/unsubscribe'
-  }, async (request) => {
-    const uri = request.params?.uri as string;
+  mcpServer.server.setRequestHandler(UnsubscribeRequestSchema, async (request) => {
+    const uri = request.params?.uri;
     if (!uri) {
       throw new Error('Missing required parameter: uri');
     }

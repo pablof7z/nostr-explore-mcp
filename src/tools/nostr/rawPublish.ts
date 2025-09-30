@@ -7,9 +7,9 @@ interface RawPublishArgs {
   nsec?: string;
 }
 
-export const rawPublish: NostrTool = {
+export const publishRaw: NostrTool = {
   schema: {
-    name: 'nostr_raw_publish',
+    name: 'nostr_publish_raw',
     description: 'Sign and publish a raw Nostr event. Takes an unsigned event payload as JSON and returns the nevent1 encoded ID.',
     inputSchema: (() => {
       const properties: any = {
