@@ -11,17 +11,30 @@ export const rawPublish: NostrTool = {
   schema: {
     name: 'nostr_raw_publish',
     description: 'Sign and publish a raw Nostr event. Takes an unsigned event payload as JSON and returns the nevent1 encoded ID.',
-    inputSchema: {
-      type: 'object',
-      properties: {
+    inputSchema: (() => {
+      const properties: any = {
         event: {
           type: 'string',
-          description: 'The unsigned event payload as a JSON string'
-        },
-        ...(getNsecSchema() ? { nsec: getNsecSchema() } : {})
-      },
-      required: ['event', ...(isNsecRequired() ? ['nsec'] : [])]
-    }
+          description: 'The unsigned event payload as a JSON string (must include "kind", "content", and optionally "tags")'
+        }
+      };
+      
+      const nsecSchema = getNsecSchema();
+      if (nsecSchema) {
+        properties.nsec = nsecSchema;
+      }
+      
+      const required = ['event'];
+      if (isNsecRequired()) {
+        required.push('nsec');
+      }
+      
+      return {
+        type: 'object',
+        properties,
+        required
+      };
+    })()
   },
   
   handler: async (args: RawPublishArgs, ndk: NDK) => {

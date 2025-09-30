@@ -7,6 +7,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import NDK from "@nostr-dev-kit/ndk";
+import { z } from "zod";
 import { tools, getToolByName } from "./tools/index.js";
 import { initializeSubscriptionManager } from "./tools/notifications.js";
 import { createFeedResourceTemplate } from "./resources/feed.js";
@@ -27,6 +28,49 @@ async function connectToNostr() {
   console.error(`Connected to Nostr relays: ${RELAYS.join(", ")}`);
 }
 
+// Helper function to convert JSON Schema to Zod schema
+function jsonSchemaToZod(jsonSchema: any): any {
+  if (!jsonSchema) return z.object({});
+  
+  if (jsonSchema.type === 'object' && jsonSchema.properties) {
+    const shape: Record<string, any> = {};
+    
+    for (const [key, prop] of Object.entries(jsonSchema.properties as any)) {
+      let zodType: any;
+      
+      if (prop.type === 'string') {
+        zodType = z.string();
+      } else if (prop.type === 'number') {
+        zodType = z.number();
+      } else if (prop.type === 'boolean') {
+        zodType = z.boolean();
+      } else if (prop.type === 'array') {
+        zodType = z.array(z.any());
+      } else if (prop.type === 'object') {
+        zodType = z.object({});
+      } else {
+        zodType = z.any();
+      }
+      
+      // Add description if present
+      if (prop.description) {
+        zodType = zodType.describe(prop.description);
+      }
+      
+      // Make optional if not in required array
+      if (!jsonSchema.required || !jsonSchema.required.includes(key)) {
+        zodType = zodType.optional();
+      }
+      
+      shape[key] = zodType;
+    }
+    
+    return shape;
+  }
+  
+  return {};
+}
+
 // Create the MCP server using McpServer instead of Server
 const mcpServer = new McpServer({
   name: "nostr-explore-mcp",
@@ -35,12 +79,14 @@ const mcpServer = new McpServer({
 
 // Register all existing tools
 tools.forEach(tool => {
+  // Convert JSON schema to Zod schema
+  const zodSchema = jsonSchemaToZod(tool.schema.inputSchema);
+  
   mcpServer.registerTool(
     tool.schema.name,
     {
-      title: tool.schema.name,
       description: tool.schema.description || "",
-      inputSchema: tool.schema.inputSchema as any
+      inputSchema: zodSchema
     },
     async (args) => {
       try {
