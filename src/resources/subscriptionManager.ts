@@ -1,5 +1,5 @@
 import NDK, { NDKFilter, NDKEvent, NDKSubscription } from "@nostr-dev-kit/ndk";
-import { nip19 } from "nostr-tools";
+import { resolveUser } from "../utils/userResolver.js";
 
 /**
  * Manages live subscriptions to Nostr feeds for MCP resource subscriptions
@@ -17,7 +17,7 @@ export class ResourceSubscriptionManager {
    * @param uri The resource URI (e.g., nostr://feed/pubkey/kinds)
    * @param onUpdate Callback when new events arrive
    */
-  subscribe(uri: string, onUpdate: (uri: string, event: NDKEvent) => void): void {
+  async subscribe(uri: string, onUpdate: (uri: string, event: NDKEvent) => void): Promise<void> {
     // Parse URI
     const parsedUri = new URL(uri);
 
@@ -31,7 +31,13 @@ export class ResourceSubscriptionManager {
       throw new Error(`Invalid nostr feed URI format: ${uri}`);
     }
 
-    const pubkey = this.parsePubkey(pathParts[1]);
+    // Resolve pubkey from NIP-05, npub, nprofile, or hex
+    const user = await resolveUser(pathParts[1], this.ndk);
+    const pubkey = user.pubkey;
+    if (!pubkey) {
+      throw new Error(`Failed to resolve pubkey from: ${pathParts[1]}`);
+    }
+
     const kindsStr = pathParts[2];
     const kinds = kindsStr ? kindsStr.split(',').map(k => parseInt(k, 10)).filter(k => !isNaN(k)) : undefined;
 
@@ -79,23 +85,5 @@ export class ResourceSubscriptionManager {
       subscription.stop();
     }
     this.subscriptions.clear();
-  }
-
-  /**
-   * Parse pubkey from npub or hex format
-   */
-  private parsePubkey(pubkey: string): string {
-    if (pubkey.startsWith("npub")) {
-      try {
-        const decoded = nip19.decode(pubkey);
-        if (decoded.type !== 'npub') {
-          throw new Error("Invalid npub format");
-        }
-        return decoded.data as string;
-      } catch (error) {
-        throw new Error(`Invalid npub: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-    return pubkey;
   }
 }

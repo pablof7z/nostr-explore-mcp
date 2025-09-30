@@ -1,30 +1,25 @@
 import { ResourceTemplate, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import NDK, { NDKFilter, NDKEvent, NDKSubscriptionOptions } from "@nostr-dev-kit/ndk";
-import { nip19 } from "nostr-tools";
+import { resolveUser } from "../utils/userResolver.js";
 
 // Constants
 const INITIAL_EVENT_TIMEOUT_MS = 3000; // Timeout in milliseconds to wait for the initial burst of events from relays
 
 /**
- * Validates and decodes a Nostr pubkey.
- * @param pubkey The pubkey to parse (npub or hex format)
+ * Resolves a user identifier to hex pubkey
+ * Supports: NIP-05, npub, nprofile, and hex pubkey
+ * @param userIdentifier The user identifier
+ * @param ndk NDK instance
  * @returns The hex-encoded pubkey
- * @throws Error if the pubkey format is invalid
+ * @throws Error if the identifier is invalid
  */
-function parsePubkey(pubkey: string): string {
-  if (pubkey.startsWith("npub")) {
-    try {
-      const decoded = nip19.decode(pubkey);
-      if (decoded.type !== 'npub') {
-        throw new Error("Invalid npub format");
-      }
-      return decoded.data as string;
-    } catch (error) {
-      throw new Error(`Invalid npub: ${error instanceof Error ? error.message : String(error)}`);
-    }
+async function resolvePubkey(userIdentifier: string, ndk: NDK): Promise<string> {
+  const user = await resolveUser(userIdentifier, ndk);
+  if (!user.pubkey) {
+    throw new Error(`Failed to resolve pubkey from: ${userIdentifier}`);
   }
-  return pubkey;
+  return user.pubkey;
 }
 
 /**
@@ -179,7 +174,13 @@ async function collectEvents(
 /**
  * Creates a ResourceTemplate for Nostr feeds and the corresponding read callback.
  * Supports URIs in the format: nostr://feed/{pubkey}/{kinds}
- * 
+ *
+ * pubkey can be:
+ * - NIP-05 identifier (user@domain.com)
+ * - npub
+ * - nprofile
+ * - hex pubkey
+ *
  * Optional query parameters:
  * - relays: Comma-separated list of relay URLs to use for the subscription
  *   Example: nostr://feed/{pubkey}/{kinds}?relays=wss://relay1.com,wss://relay2.com
@@ -220,8 +221,8 @@ export function createFeedResourceTemplate(ndk: NDK): {
     uri: URL,
     variables: { pubkey: string; kinds?: string }
   ): Promise<ReadResourceResult> => {
-    // Parse and validate input parameters
-    const pubkey = parsePubkey(variables.pubkey);
+    // Resolve pubkey from NIP-05, npub, nprofile, or hex
+    const pubkey = await resolvePubkey(variables.pubkey, ndk);
     const kinds = parseKinds(variables.kinds);
     const relayUrls = parseRelays(uri);
 

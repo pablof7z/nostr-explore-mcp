@@ -1,11 +1,18 @@
 import { ResourceTemplate, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
-import NDK, { NDKFilter, NDKEvent, NDKUser } from "@nostr-dev-kit/ndk";
+import NDK, { NDKFilter, NDKEvent } from "@nostr-dev-kit/ndk";
 import { resolveNostrContent } from "../tools/utils/contentResolver.js";
+import { resolveUser } from "../utils/userResolver.js";
 
 /**
  * Creates a ResourceTemplate for user root notes
  * Supports URIs in the format: nostr://user/{userId}/notes
+ *
+ * userId can be:
+ * - NIP-05 identifier (user@domain.com)
+ * - npub
+ * - nprofile
+ * - hex pubkey
  *
  * Query parameters:
  * - limit: Maximum number of notes to fetch (default: 100)
@@ -32,10 +39,8 @@ export function createUserNotesResourceTemplate(ndk: NDK): {
     const limit = parseInt(uri.searchParams.get('limit') || '100', 10);
     const resolveContent = uri.searchParams.get('resolveContent') === 'true';
 
-    // Create NDK user from npub or hex pubkey
-    const user = userId.startsWith("npub")
-      ? new NDKUser({ npub: userId })
-      : new NDKUser({ pubkey: userId });
+    // Resolve user from NIP-05, npub, nprofile, or hex pubkey
+    const user = await resolveUser(userId, ndk);
 
     if (!user.pubkey) {
       throw new Error("Invalid user ID provided");
