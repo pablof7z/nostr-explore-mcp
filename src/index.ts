@@ -11,6 +11,7 @@ import { z } from "zod";
 import { tools, getToolByName } from "./tools/index.js";
 import { initializeSubscriptionManager } from "./tools/notifications.js";
 import { createFeedResourceTemplate } from "./resources/feed.js";
+import { ResourceSubscriptionManager } from "./resources/subscriptionManager.js";
 
 const RELAYS = [
   "wss://relay.primal.net",
@@ -22,6 +23,7 @@ const ndk = new NDK({
 });
 
 let subscriptionManager: ReturnType<typeof initializeSubscriptionManager> | null = null;
+let resourceSubscriptionManager: ResourceSubscriptionManager | null = null;
 
 async function connectToNostr() {
   await ndk.connect();
@@ -74,7 +76,12 @@ function jsonSchemaToZod(jsonSchema: any): any {
 // Create the MCP server using McpServer instead of Server
 const mcpServer = new McpServer({
   name: "nostr-explore-mcp",
-  version: "0.1.0"
+  version: "0.1.0",
+  capabilities: {
+    resources: {
+      subscribe: true
+    }
+  }
 });
 
 // Register all existing tools
@@ -114,14 +121,62 @@ mcpServer.registerResource(
 async function main() {
   // Connect to Nostr
   await connectToNostr();
-  
+
   // Initialize subscription manager
   subscriptionManager = initializeSubscriptionManager(ndk);
-  
+
+  // Initialize resource subscription manager
+  resourceSubscriptionManager = new ResourceSubscriptionManager(ndk);
+
+  // Set up subscription handlers
+  mcpServer.setRequestHandler({
+    method: 'resources/subscribe'
+  }, async (request) => {
+    const uri = request.params?.uri as string;
+    if (!uri) {
+      throw new Error('Missing required parameter: uri');
+    }
+
+    if (!resourceSubscriptionManager) {
+      throw new Error('Resource subscription manager not initialized');
+    }
+
+    // Subscribe and send notifications when updates occur
+    resourceSubscriptionManager.subscribe(uri, (updatedUri) => {
+      // Send notification to client
+      mcpServer.sendNotification({
+        method: 'notifications/resources/updated',
+        params: { uri: updatedUri }
+      });
+    });
+
+    return {};
+  });
+
+  mcpServer.setRequestHandler({
+    method: 'resources/unsubscribe'
+  }, async (request) => {
+    const uri = request.params?.uri as string;
+    if (!uri) {
+      throw new Error('Missing required parameter: uri');
+    }
+
+    if (!resourceSubscriptionManager) {
+      throw new Error('Resource subscription manager not initialized');
+    }
+
+    const success = resourceSubscriptionManager.unsubscribe(uri);
+    if (!success) {
+      throw new Error(`No active subscription found for URI: ${uri}`);
+    }
+
+    return {};
+  });
+
   // Start the MCP server
   const transport = new StdioServerTransport();
   await mcpServer.connect(transport);
-  
+
   console.error("Nostr Explore MCP server running");
 }
 
@@ -131,6 +186,9 @@ process.on('SIGINT', () => {
   if (subscriptionManager) {
     subscriptionManager.stopAll();
   }
+  if (resourceSubscriptionManager) {
+    resourceSubscriptionManager.stopAll();
+  }
   process.exit(0);
 });
 
@@ -138,6 +196,9 @@ process.on('SIGTERM', () => {
   console.error("Shutting down gracefully...");
   if (subscriptionManager) {
     subscriptionManager.stopAll();
+  }
+  if (resourceSubscriptionManager) {
+    resourceSubscriptionManager.stopAll();
   }
   process.exit(0);
 });
