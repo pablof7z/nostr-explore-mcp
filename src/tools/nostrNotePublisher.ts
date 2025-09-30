@@ -66,6 +66,7 @@ export const nostrNotePublisher: NostrTool = {
       
       // Create a new note event (kind 1)
       const event = replyToEvent ? replyToEvent.reply() : new NDKEvent(ndk);
+      event.kind ??= 1;
       event.content = content;
       
       // Add mention tags
@@ -101,9 +102,9 @@ export const nostrNotePublisher: NostrTool = {
       // Sign the event
       try {
         await event.sign(signer);
-      } catch (e) {
-        console.error("Error signing event", error)
+      } catch (error) {
         console.error("Event", event.inspect)
+        console.error("Error signing event", error)
       }
       await event.publish();
 
