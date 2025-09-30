@@ -9,7 +9,7 @@ A Model Context Protocol (MCP) server that enables AI assistants to explore and 
 
 ## What You Can Do
 
-This MCP server provides tools for:
+This MCP server provides tools and resources for:
 
 ### Conversation Exploration
 - **Track conversations** - Search and retrieve conversation threads based on keywords or hashtags
@@ -25,6 +25,9 @@ This MCP server provides tools for:
 - **Monitor mentions** - Track when specific pubkeys are mentioned across the network
 - **Store notifications** - Retrieve and manage notifications for monitored agents
 - **Publish notification events** - Create notification events based on source events
+
+### Real-time Resources
+- **Event Feed Subscription** - Subscribe to real-time Nostr event streams from specific users with optional filtering
 
 ## Installation
 
@@ -160,6 +163,31 @@ The server provides the following tools:
 - `get_notifications` - Retrieve stored notifications
 - `publish_notification` - Create and publish notification events
 
+## Available Resources
+
+### Nostr Feed
+
+The `nostr://feed/` resource provides a real-time stream of Nostr events for a given public key, with optional filtering by event kinds.
+
+**URI Format:**
+`nostr://feed/{pubkey-or-npub}/{kinds}?relays=wss://relay1.com,wss://relay2.com`
+
+- `{pubkey-or-npub}`: The public key (in hex or npub format) of the user whose feed you want to subscribe to.
+- `{kinds}`: (Optional) A comma-separated list of event kinds to filter by (e.g., `1,6,30023`).
+- `?relays=...`: (Optional) A comma-separated list of relay URLs to use for the subscription. If not provided, the server's default relays will be used.
+
+**Example Usage:**
+
+To subscribe to all events from a user:
+```
+nostr://feed/npub1...
+```
+
+To subscribe to text notes (kind 1) and long-form posts (kind 30023) from a user, using a specific relay:
+```
+nostr://feed/npub1.../1,30023?relays=wss://relay.damus.io
+```
+
 ## Development
 
 ### Building
@@ -177,6 +205,8 @@ npm test
 nostr-explore-mcp/
 ├── src/
 │   ├── index.ts                    # Main server entry point
+│   ├── resources/                  # Resource implementations
+│   │   └── feed.ts                 # Nostr event feed resource
 │   ├── tools/                      # Tool implementations
 │   │   ├── getConversation.ts      # Conversation retrieval
 │   │   ├── nostr/
