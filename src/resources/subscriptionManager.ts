@@ -7,7 +7,7 @@ import { nip19 } from "nostr-tools";
 export class ResourceSubscriptionManager {
   private subscriptions: Map<string, {
     subscription: NDKSubscription;
-    onUpdate: (uri: string) => void;
+    onUpdate: (uri: string, event: NDKEvent) => void;
   }> = new Map();
 
   constructor(private ndk: NDK) {}
@@ -17,7 +17,7 @@ export class ResourceSubscriptionManager {
    * @param uri The resource URI (e.g., nostr://feed/pubkey/kinds)
    * @param onUpdate Callback when new events arrive
    */
-  subscribe(uri: string, onUpdate: (uri: string) => void): void {
+  subscribe(uri: string, onUpdate: (uri: string, event: NDKEvent) => void): void {
     // Parse URI
     const parsedUri = new URL(uri);
 
@@ -45,9 +45,9 @@ export class ResourceSubscriptionManager {
     const ndkSubscription = this.ndk.subscribe(filter, { closeOnEose: false });
 
     // Handle events
-    ndkSubscription.on('event', (_event: NDKEvent) => {
-      // Notify that the resource has been updated
-      onUpdate(uri);
+    ndkSubscription.on('event', (event: NDKEvent) => {
+      // Notify that the resource has been updated with the event content
+      onUpdate(uri, event);
     });
 
     // Store subscription

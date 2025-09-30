@@ -142,11 +142,20 @@ async function main() {
     }
 
     // Subscribe and send notifications when updates occur
-    resourceSubscriptionManager.subscribe(uri, (updatedUri) => {
-      // Send notification to client
+    resourceSubscriptionManager.subscribe(uri, (updatedUri, event) => {
+      // Send notification to client with event content
       mcpServer.sendNotification({
         method: 'notifications/resources/updated',
-        params: { uri: updatedUri }
+        params: {
+          uri: updatedUri,
+          content: JSON.stringify({
+            created_at: event.created_at,
+            content: event.content,
+            kind: event.kind,
+            pubkey: event.pubkey,
+            tags: event.tags,
+          })
+        }
       });
     });
 
