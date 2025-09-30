@@ -1,11 +1,16 @@
 import { ResourceTemplate, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
-import NDK, { NDKFilter, NDKEvent } from "@nostr-dev-kit/ndk";
+import NDK, { NDKFilter, NDKEvent, NDKSubscriptionOptions } from "@nostr-dev-kit/ndk";
 import { nip19 } from "nostr-tools";
 
 /**
  * Creates a ResourceTemplate for Nostr feeds and the corresponding read callback.
  * Supports URIs in the format: nostr://feed/{pubkey}/{kinds}
+ * 
+ * Optional query parameters:
+ * - relays: Comma-separated list of relay URLs to use for the subscription
+ *   Example: nostr://feed/{pubkey}/{kinds}?relays=wss://relay1.com,wss://relay2.com
+ *   If not specified, uses the default relays configured in the NDK instance
  */
 export function createFeedResourceTemplate(ndk: NDK): {
   template: ResourceTemplate;
@@ -77,9 +82,30 @@ export function createFeedResourceTemplate(ndk: NDK): {
       filter.kinds = kinds;
     }
 
+    // Parse relay URLs from query parameters
+    const subscriptionOptions: NDKSubscriptionOptions = { closeOnEose: false };
+    const relaysParam = uri.searchParams.get('relays');
+    
+    if (relaysParam) {
+      // Split the comma-separated list of relay URLs
+      const relayUrls = relaysParam.split(',').map(url => url.trim()).filter(url => url.length > 0);
+      
+      if (relayUrls.length > 0) {
+        // Validate that each URL starts with ws:// or wss://
+        for (const relayUrl of relayUrls) {
+          if (!relayUrl.startsWith('ws://') && !relayUrl.startsWith('wss://')) {
+            throw new Error(`Invalid relay URL: ${relayUrl}. Must start with ws:// or wss://`);
+          }
+        }
+        
+        // Set the explicit relay URLs for this subscription
+        subscriptionOptions.relayUrls = relayUrls;
+      }
+    }
+
     // Collect events for a short period
     const events: any[] = [];
-    const subscription = ndk.subscribe(filter, { closeOnEose: false });
+    const subscription = ndk.subscribe(filter, subscriptionOptions);
 
     return new Promise((resolve, reject) => {
       // Set a timeout to collect initial events
