@@ -1,6 +1,6 @@
 {
   "name": "nostr-explore-mcp",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "MCP server for exploring Nostr protocol data",
   "main": "dist/index.js",
   "bin": {
@@ -26,7 +26,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@nostr-dev-kit/ndk": "^2.10.5"
+    "@nostr-dev-kit/ndk": "^2.10.5",
+    "nostr-tools": "^2.10.4"
   },
   "devDependencies": {
     "@types/bun": "^1.1.14",

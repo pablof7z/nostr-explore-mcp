@@ -5,10 +5,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import NDK from "@nostr-dev-kit/ndk";
 import { tools, getToolByName } from "./tools/index.js";
 import { initializeSubscriptionManager } from "./tools/notifications.js";
+import { FeedResource } from "./resources/feed.js";
 
 const RELAYS = [
   "wss://relay.primal.net",
@@ -20,6 +23,7 @@ const ndk = new NDK({
 });
 
 let subscriptionManager: ReturnType<typeof initializeSubscriptionManager> | null = null;
+let feedResource: FeedResource | null = null;
 
 async function connectToNostr() {
   await ndk.connect();
@@ -34,6 +38,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -58,12 +63,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  if (!feedResource) {
+    return { resources: [] };
+  }
+  
+  const resources = await feedResource.list();
+  return { resources };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (!feedResource) {
+    throw new Error("Feed resource not initialized");
+  }
+
+  const { uri } = request.params;
+  
+  if (!uri.startsWith("nostr://feed/")) {
+    throw new Error(`Unsupported resource URI: ${uri}`);
+  }
+
+  try {
+    const contents = await feedResource.get(uri);
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "application/x-ndjson",
+          text: contents,
+        }
+      ]
+    };
+  } catch (error) {
+    throw new Error(`Failed to read resource ${uri}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+});
+
 async function main() {
   // Connect to Nostr
   await connectToNostr();
   
   // Initialize subscription manager
   subscriptionManager = initializeSubscriptionManager(ndk);
+  
+  // Initialize feed resource
+  feedResource = new FeedResource(ndk);
   
   // Start the MCP server
   const transport = new StdioServerTransport();

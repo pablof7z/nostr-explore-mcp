@@ -6,6 +6,7 @@
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",
         "@nostr-dev-kit/ndk": "^2.10.5",
+        "nostr-tools": "^2.10.4",
       },
       "devDependencies": {
         "@types/bun": "^1.1.14",
