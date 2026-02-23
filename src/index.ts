@@ -9,7 +9,6 @@ import {
 import NDK from "@nostr-dev-kit/ndk";
 import { z } from "zod";
 import { tools, getToolByName } from "./tools/index.js";
-import { initializeSubscriptionManager } from "./tools/notifications.js";
 import { createFeedResourceTemplate } from "./resources/feed.js";
 import { createUserNotesResourceTemplate } from "./resources/userNotes.js";
 import { createNotificationsResourceTemplate } from "./resources/notifications.js";
@@ -24,7 +23,6 @@ const ndk = new NDK({
   explicitRelayUrls: RELAYS,
 });
 
-let subscriptionManager: ReturnType<typeof initializeSubscriptionManager> | null = null;
 let resourceSubscriptionManager: ResourceSubscriptionManager | null = null;
 
 async function connectToNostr() {
@@ -137,19 +135,17 @@ mcpServer.registerResource(
   "nostr-notifications",
   notificationsResource.template,
   {
-    title: "Agent Notifications",
-    description: "Retrieve stored notifications for a monitored agent",
+    title: "Nostr Notifications",
+    description: "Get events that mention a specific Nostr user (p-tagged events)",
     mimeType: "application/x-ndjson"
   },
   notificationsResource.readCallback
 );
 
+
 async function main() {
   // Connect to Nostr
   await connectToNostr();
-
-  // Initialize subscription manager
-  subscriptionManager = initializeSubscriptionManager(ndk);
 
   // Initialize resource subscription manager
   resourceSubscriptionManager = new ResourceSubscriptionManager(ndk);
@@ -218,9 +214,6 @@ async function main() {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.error("Shutting down gracefully...");
-  if (subscriptionManager) {
-    subscriptionManager.stopAll();
-  }
   if (resourceSubscriptionManager) {
     resourceSubscriptionManager.stopAll();
   }
@@ -229,9 +222,6 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   console.error("Shutting down gracefully...");
-  if (subscriptionManager) {
-    subscriptionManager.stopAll();
-  }
   if (resourceSubscriptionManager) {
     resourceSubscriptionManager.stopAll();
   }

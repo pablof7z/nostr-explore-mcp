@@ -1,10 +1,16 @@
 import { NostrTool } from '../types.js';
 import NDK, { NDKEvent } from '@nostr-dev-kit/ndk';
-import { createSigner, getNsecSchema, isNsecRequired } from '../../utils/signer.js';
+import {
+  createSigner,
+  getNsecSchema,
+  getPublishAsSchema,
+  isNsecRequired,
+} from '../../utils/signer.js';
 
 interface RawPublishArgs {
   event: string;  // JSON string of the unsigned event
   nsec?: string;
+  publish_as?: string;
 }
 
 export const publishRaw: NostrTool = {
@@ -23,6 +29,8 @@ export const publishRaw: NostrTool = {
       if (nsecSchema) {
         properties.nsec = nsecSchema;
       }
+
+      properties.publish_as = getPublishAsSchema();
       
       const required = ['event'];
       if (isNsecRequired()) {
@@ -39,7 +47,7 @@ export const publishRaw: NostrTool = {
   
   handler: async (args: RawPublishArgs, ndk: NDK) => {
     try {
-      const { event: eventJson, nsec } = args;
+      const { event: eventJson, nsec, publish_as } = args;
       
       // Parse the event JSON
       let eventData;
@@ -61,9 +69,12 @@ export const publishRaw: NostrTool = {
       }
       
       // Create signer
-      const signer = createSigner(nsec);
+      const signer = await createSigner(ndk, {
+        nsec,
+        publishAs: publish_as,
+      });
       if (!signer) {
-        throw new Error('No signing credentials available. Please provide an nsec or set NOSTR_PRIVATE_KEY environment variable.');
+        throw new Error('No signing credentials available. Please provide nsec, set NOSTR_PRIVATE_KEY, or configure NOSTR_BUNKER_KEY/publish_as.');
       }
       
       // Create NDK event from the provided data
@@ -81,11 +92,12 @@ export const publishRaw: NostrTool = {
       await event.sign(signer);
       
       // Publish the event
-      await event.publish();
-      
-      // Return the encoded event ID
+      const relaySet = await event.publish();
+      const relays = [...relaySet].map(r => r.url);
+      const result = { nevent1: event.encode(), relays };
       return {
-        nevent1: event.encode()
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
       };
       
     } catch (error) {

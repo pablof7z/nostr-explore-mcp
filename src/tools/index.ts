@@ -1,9 +1,4 @@
 import { getConversationTool } from "./getConversation.js";
-import {
-    startNotificationMonitoringTool,
-    stopNotificationMonitoringTool,
-    initializeSubscriptionManager
-} from "./notifications.js";
 import { NostrTool } from "./types.js";
 import { conversationTracker } from './nostr/conversationTracker.js';
 import { publishArticle } from './nostr/contentPublisher.js';
@@ -12,8 +7,6 @@ import { publishRaw } from './nostr/rawPublish.js';
 
 const tools: NostrTool[] = [
     getConversationTool,
-    startNotificationMonitoringTool,
-    stopNotificationMonitoringTool,
     conversationTracker,
     publishArticle,
     publishNote,
@@ -28,11 +21,8 @@ export function getToolByName(name: string): NostrTool | undefined {
 export {
     tools,
     getConversationTool,
-    startNotificationMonitoringTool,
-    stopNotificationMonitoringTool,
     conversationTracker,
     publishArticle,
     publishNote,
-    publishRaw,
-    initializeSubscriptionManager
+    publishRaw
 }

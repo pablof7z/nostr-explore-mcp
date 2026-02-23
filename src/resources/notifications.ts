@@ -1,75 +1,52 @@
 import { ResourceTemplate, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import NDK from "@nostr-dev-kit/ndk";
-import { initializeSubscriptionManager } from "../tools/notifications.js";
+import { resolveUser } from "../utils/userResolver.js";
 
 /**
- * Creates a ResourceTemplate for agent notifications
- * Supports URIs in the format: nostr://notifications/{agentPubkey}
+ * Creates a ResourceTemplate for mentions/notifications of a pubkey.
+ * Supports URIs in the format: nostr://notifications/{userId}
+ *
+ * userId can be NIP-05, npub, nprofile, or hex pubkey.
  *
  * Query parameters:
- * - limit: Maximum number of notifications to return (default: 50)
- * - since: Unix timestamp to get notifications after
+ * - limit: Maximum number of events to fetch (default: 50)
+ * - since: Unix timestamp to fetch events after
  */
 export function createNotificationsResourceTemplate(ndk: NDK): {
   template: ResourceTemplate;
   readCallback: ReadResourceTemplateCallback;
 } {
   const template = new ResourceTemplate(
-    "nostr://notifications/{agentPubkey}",
-    {
-      list: undefined,
-    }
+    "nostr://notifications/{userId}",
+    { list: undefined }
   );
 
   const readCallback: ReadResourceTemplateCallback = async (
     uri: URL,
-    variables: { agentPubkey: string }
+    variables: { userId: string }
   ): Promise<ReadResourceResult> => {
-    const { agentPubkey } = variables;
+    const user = await resolveUser(variables.userId, ndk);
+    if (!user.pubkey) throw new Error("Invalid user ID provided");
 
-    // Parse query parameters
     const limit = parseInt(uri.searchParams.get('limit') || '50', 10);
     const sinceParam = uri.searchParams.get('since');
     const since = sinceParam ? parseInt(sinceParam, 10) : undefined;
 
-    // Get the subscription manager and service
-    const manager = initializeSubscriptionManager(ndk);
-    const service = manager.getService(agentPubkey);
+    const filter: Record<string, unknown> = { "#p": [user.pubkey], limit };
+    if (since) filter.since = since;
 
-    if (!service) {
-      throw new Error(`No monitoring service found for agent: ${agentPubkey}. Use start_notification_monitoring tool first.`);
-    }
+    const events = await ndk.fetchEvents(filter as any);
 
-    // Get notifications from the service
-    const notifications = service.getNotifications({
-      limit,
-      since
-    });
-
-    // Format as NDJSON
-    const formattedNotifications = notifications.map(n => ({
-      created_at: n.created_at,
-      content: n.content,
-      kind: n.kind,
-      pubkey: n.pubkey,
-      tags: n.tags,
-      id: n.id,
-    }));
-
-    const text = formattedNotifications.map(n => JSON.stringify(n)).join('\n');
+    const text = [...events]
+      .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
+      .map(e => JSON.stringify({ id: e.id, created_at: e.created_at, kind: e.kind, pubkey: e.pubkey, content: e.content, tags: e.tags }))
+      .join('\n');
 
     return {
-      contents: [{
-        uri: uri.href,
-        mimeType: "application/x-ndjson",
-        text
-      }]
+      contents: [{ uri: uri.href, mimeType: "application/x-ndjson", text }]
     };
   };
 
-  return {
-    template,
-    readCallback
-  };
+  return { template, readCallback };
 }

@@ -1,64 +1,39 @@
 # Nostr Explore MCP
 
-A Model Context Protocol (MCP) server that enables AI assistants to explore and interact with the Nostr network, focusing on conversation discovery, content publishing, and notification monitoring.
-
-## Version 0.2.0 Changes
-- Renamed `nostr_tweet_publisher` to `nostr_publish_note` for better clarity
-- Added flexible authentication: tools now support both environment variable (`NOSTR_PRIVATE_KEY`) and direct nsec parameter
-- Improved code organization with shared signer utility for DRY principle
+A Model Context Protocol (MCP) server that enables AI assistants to explore and interact with the Nostr network — conversation discovery, content publishing, and real-time event subscriptions.
 
 ## What You Can Do
 
-This MCP server provides tools and resources for:
-
 ### Conversation Exploration
-- **Track conversations** - Search and retrieve conversation threads based on keywords or hashtags
-- **Get full thread context** - Retrieve complete conversation threads from any event, including all parent messages
-- **Monitor discussions** - Find active discussions about specific topics with configurable depth
+- **Track conversations** — Search and retrieve threads by keywords or hashtags
+- **Get full thread context** — Retrieve complete conversation threads from any event, including all parents
 
-### Content Publishing  
-- **Publish short notes** - Post Twitter-style messages with hashtags, mentions, and replies
-- **Create long-form articles** - Publish full articles with markdown, summaries, and header images
-- **View user timelines** - Get all root posts from specific Nostr users
+### Content Publishing
+- **Publish short notes** — Post kind:1 messages with hashtags, mentions, and replies
+- **Create long-form articles** — Publish kind:30023 articles with markdown, summaries, and header images
+- **Publish raw events** — Sign and publish any arbitrary Nostr event
 
-### Notification Management
-- **Monitor mentions** - Track when specific pubkeys are mentioned across the network
-- **Store notifications** - Retrieve and manage notifications for monitored agents
+### Real-time Resource Subscriptions
+All resources support MCP `resources/subscribe` — the client receives a push notification whenever a new event arrives, without polling.
 
-### Real-time Resources
-- **Event Feed Subscription** - Subscribe to real-time Nostr event streams from specific users with optional filtering
+- **User notes** — Live stream of root notes from a specific user
+- **Notifications** — Live stream of events that mention a specific pubkey
+- **Event feed** — Live stream of all events from a user, optionally filtered by kind
 
 ## Installation
 
-### Prerequisites
-- Node.js 18 or higher
-- npm or yarn package manager
-
-### Setup
-
-1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/nostr-mcp-server.git
-cd nostr-mcp-server
+npx nostr-explore-mcp
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+Or add to your MCP client config (e.g. Claude Desktop):
 
-3. Build the project:
-```bash
-npm run build
-```
-
-4. Configure your MCP client (e.g., Claude Desktop) to use the server by adding to your configuration:
 ```json
 {
   "mcpServers": {
     "nostr-explore": {
-      "command": "node",
-      "args": ["path/to/dist/index.js"]
+      "command": "npx",
+      "args": ["nostr-explore-mcp"]
     }
   }
 }
@@ -66,183 +41,100 @@ npm run build
 
 ## Configuration
 
-The server connects to the following Nostr relays by default:
-- wss://relay.primal.net
-- wss://tenex.chat
+Default relays:
+- `wss://relay.primal.net`
+- `wss://tenex.chat`
 
 ### Authentication for Publishing
 
-You can provide signing credentials in two ways:
+Publishing requires a signing key. Three ways to provide one:
 
-1. **Environment Variable (Recommended for single-user setups):**
-   Set `NOSTR_PRIVATE_KEY` in your environment with your private key (hex or nsec format).
-   When set, the nsec parameter becomes optional in publishing tools.
+1. **Environment variable** — set `NOSTR_PRIVATE_KEY` (hex or nsec)
+2. **Per-call parameter** — pass `nsec` in the tool arguments
+3. **NIP-46 bunker** — set `NOSTR_BUNKER_KEY` (bunker URL, hex pubkey, npub, or NIP-05), or pass `publish_as` per call
 
-2. **Direct Parameter:**
-   Pass the `nsec` parameter directly to publishing tools. This takes precedence over the environment variable.
+NIP-46 still needs a local key for bunker authentication (`nsec` param or `NOSTR_PRIVATE_KEY`).
 
-## Usage
-
-Once configured, the MCP server provides tools that can be accessed by AI assistants:
-
-### Examples
-
-**Publishing a short note:**
-```typescript
-// With nsec parameter
-await nostr_publish_note({
-  content: "Hello Nostr!",
-  nsec: "your-nsec-key",  // Optional if NOSTR_PRIVATE_KEY is set
-  hashtags: ["introductions"],
-  mentions: ["npub1..."]
-});
-
-// With environment variable set (no nsec needed)
-await nostr_publish_note({
-  content: "Hello Nostr!",
-  hashtags: ["introductions"],
-  mentions: ["npub1..."]
-});
-```
-
-**Publishing long-form content:**
-```typescript
-// With nsec parameter
-await nostr_publish_article({
-  title: "Understanding Nostr",
-  content: "Full article content in markdown...",
-  summary: "An introduction to Nostr",
-  image: "https://example.com/header.jpg",
-  tags: [["t", "nostr"], ["t", "decentralization"]],
-  nsec: "your-nsec-key"  // Optional if NOSTR_PRIVATE_KEY is set
-});
-
-// With environment variable set (no nsec needed)
-await nostr_publish_article({
-  title: "Understanding Nostr",
-  content: "Full article content in markdown...",
-  summary: "An introduction to Nostr",
-  image: "https://example.com/header.jpg",
-  tags: [["t", "nostr"], ["t", "decentralization"]]
-});
-```
-
-**Searching for conversations:**
-```typescript
-await nostr_conversation_tracker({
-  query: "#bitcoin",
-  limit: 10,
-  thread_depth: 2
-});
-```
-
-**Getting a full conversation thread:**
-```typescript
-await get_conversation({
-  eventId: "nevent1..." // or hex event ID
-});
-```
+Precedence: `publish_as` > `NOSTR_BUNKER_KEY`, `nsec` > `NOSTR_PRIVATE_KEY`.
 
 ## Available Tools
 
-The server provides the following tools:
+### Conversation
 
-### Conversation Tools
-- `get_conversation` - Retrieve a full conversation thread from any Nostr event
-- `nostr_conversation_tracker` - Search and retrieve conversation threads by keywords/hashtags
-- `user_root_notes` - Get all root posts from a specific user
+| Tool | Description |
+|------|-------------|
+| `get_conversation` | Retrieve a full thread from any Nostr event (nevent, hex ID, etc.) |
+| `nostr_conversation_tracker` | Search threads by keyword or hashtag |
 
-### Publishing Tools
-- `nostr_publish_note` - Publish short notes with hashtags, mentions, and replies
-- `nostr_publish_article` - Publish long-form articles with markdown support
+### Publishing
 
-### Notification Tools
-- `start_notification_monitoring` - Start monitoring mentions for a specific pubkey
-- `stop_notification_monitoring` - Stop monitoring for a specific pubkey
-- `get_notifications` - Retrieve stored notifications
+All publish tools return the encoded event ID **and** the list of relays where the event was accepted.
+
+| Tool | Returns | Description |
+|------|---------|-------------|
+| `nostr_publish_note` | `{ nevent, relays }` | Publish a short kind:1 note |
+| `nostr_publish_article` | `{ naddr, relays }` | Publish a long-form kind:30023 article |
+| `nostr_publish_raw` | `{ nevent1, relays }` | Sign and publish a raw event JSON |
 
 ## Available Resources
 
-### Nostr Feed
+All resources support `resources/subscribe` for push-based update notifications.
 
-The `nostr://feed/` resource provides a real-time stream of Nostr events for a given public key, with optional filtering by event kinds.
+### `nostr://user/{userId}/notes`
 
-**URI Format:**
-`nostr://feed/{pubkey-or-npub}/{kinds}?relays=wss://relay1.com,wss://relay2.com`
+Root notes (kind:1 without `e` tags) from a specific user.
 
-- `{pubkey-or-npub}`: The public key (in hex or npub format) of the user whose feed you want to subscribe to.
-- `{kinds}`: (Optional) A comma-separated list of event kinds to filter by (e.g., `1,6,30023`).
-- `?relays=...`: (Optional) A comma-separated list of relay URLs to use for the subscription. If not provided, the server's default relays will be used.
+- `userId` — NIP-05, npub, nprofile, or hex pubkey
+- `?limit=N` — max events to return (default 100)
+- `?resolveContent=true` — resolve embedded `nostr:` references
 
-**Example Usage:**
+### `nostr://notifications/{userId}`
 
-To subscribe to all events from a user:
-```
-nostr://feed/npub1...
-```
+Events that mention a specific user (events with a `p` tag pointing to their pubkey).
 
-To subscribe to text notes (kind 1) and long-form posts (kind 30023) from a user, using a specific relay:
-```
-nostr://feed/npub1.../1,30023?relays=wss://relay.damus.io
-```
+- `userId` — NIP-05, npub, nprofile, or hex pubkey
+- `?limit=N` — max events to return (default 50)
+- `?since=<unix>` — only events after this timestamp
+
+### `nostr://feed/{userId}/{kinds}`
+
+All events from a user, optionally filtered by kind.
+
+- `userId` — NIP-05, npub, nprofile, or hex pubkey
+- `{kinds}` — optional comma-separated kinds, e.g. `1,30023`
+- `?relays=wss://...` — override default relays
 
 ## Development
 
-### Building
 ```bash
-npm run build
-```
-
-### Testing
-```bash
-npm test
+bun run dev    # run from source
+bun run build  # compile to dist/
 ```
 
 ### Project Structure
+
 ```
-nostr-explore-mcp/
-├── src/
-│   ├── index.ts                    # Main server entry point
-│   ├── resources/                  # Resource implementations
-│   │   └── feed.ts                 # Nostr event feed resource
-│   ├── tools/                      # Tool implementations
-│   │   ├── getConversation.ts      # Conversation retrieval
-│   │   ├── nostr/
-│   │   │   ├── conversationTracker.ts # Conversation search
-│   │   │   └── contentPublisher.ts    # Long-form publishing
-│   │   ├── nostrNotePublisher.ts   # Short note publishing
-│   │   ├── notifications.ts        # Notification management
-│   │   └── userRootNotes.ts        # User timeline
-│   └── utils/                      # Shared utilities
-│       └── signer.ts               # Shared signing logic
-├── dist/                           # Compiled JavaScript
-├── package.json
-└── tsconfig.json
+src/
+├── index.ts                        # Server entry point
+├── resources/
+│   ├── feed.ts                     # nostr://feed/ resource
+│   ├── userNotes.ts                # nostr://user/{userId}/notes resource
+│   ├── notifications.ts            # nostr://notifications/{userId} resource
+│   └── subscriptionManager.ts      # Live NDK subscriptions for all resources
+├── tools/
+│   ├── getConversation.ts
+│   ├── nostrNotePublisher.ts
+│   ├── nostr/
+│   │   ├── conversationTracker.ts
+│   │   ├── contentPublisher.ts
+│   │   └── rawPublish.ts
+│   └── utils/
+│       └── contentResolver.ts
+└── utils/
+    ├── signer.ts                   # Signing / NIP-46 logic
+    └── userResolver.ts             # NIP-05 / npub / hex resolution
 ```
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Resources
-
-- [Nostr Protocol Documentation](https://github.com/nostr-protocol/nostr)
-- [NIPs (Nostr Implementation Possibilities)](https://github.com/nostr-protocol/nips)
-- [MCP Documentation](https://modelcontextprotocol.io)
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues, questions, or suggestions, please open an issue on GitHub.
-
-## Authors
-
-[@pablof7z](nostr:npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft)
+MIT — [@pablof7z](nostr:npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft)

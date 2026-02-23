@@ -1,6 +1,11 @@
 import { NostrTool } from "../types.js";
 import { NDKArticle } from "@nostr-dev-kit/ndk";
-import { createSigner, getNsecSchema, isNsecRequired } from "../../utils/signer.js";
+import {
+  createSigner,
+  getNsecSchema,
+  getPublishAsSchema,
+  isNsecRequired,
+} from "../../utils/signer.js";
 
 interface ContentPublisherParams {
   title: string;
@@ -10,6 +15,7 @@ interface ContentPublisherParams {
   tags?: Array<Array<string>>;
   published_at?: number;
   nsec?: string;
+  publish_as?: string;
 }
 
 export const publishArticle: NostrTool = {
@@ -50,6 +56,7 @@ export const publishArticle: NostrTool = {
           description: "A Unix timestamp for the publication date. Will be used in the 'published_at' tag. Defaults to the current time",
         },
         ...(getNsecSchema() ? { nsec: getNsecSchema() } : {}),
+        publish_as: getPublishAsSchema(),
       },
       required: ["title", "content", ...(isNsecRequired() ? ["nsec"] : [])],
     },
@@ -62,13 +69,17 @@ export const publishArticle: NostrTool = {
       image, 
       tags = [], 
       published_at,
-      nsec 
+      nsec,
+      publish_as,
     } = args as ContentPublisherParams;
 
     // Create signer using utility function
-    const signer = createSigner(nsec);
+    const signer = await createSigner(ndk, {
+      nsec,
+      publishAs: publish_as,
+    });
     if (!signer) {
-      throw new Error("No signing credentials available. Please provide an nsec or set NOSTR_PRIVATE_KEY environment variable.");
+      throw new Error("No signing credentials available. Please provide nsec, set NOSTR_PRIVATE_KEY, or configure NOSTR_BUNKER_KEY/publish_as.");
     }
 
     // Create the event
@@ -105,9 +116,13 @@ export const publishArticle: NostrTool = {
     // Sign and publish the event
     try {
       await event.sign(signer);
-      await event.publish();
-
-      return { naddr: event.encode() };
+      const relaySet = await event.publish();
+      const relays = [...relaySet].map(r => r.url);
+      const result = { naddr: event.encode(), relays };
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+      };
     } catch (error) {
       throw new Error(`Failed to publish content: ${error instanceof Error ? error.message : String(error)}`);
     }

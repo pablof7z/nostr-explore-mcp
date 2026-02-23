@@ -1,11 +1,17 @@
 import { NostrTool } from './types.js';
 import NDK, { NDKEvent } from '@nostr-dev-kit/ndk';
 import { nip19 } from 'nostr-tools';
-import { createSigner, getNsecSchema, isNsecRequired } from '../utils/signer.js';
+import {
+  createSigner,
+  getNsecSchema,
+  getPublishAsSchema,
+  isNsecRequired,
+} from '../utils/signer.js';
 
 interface NotePublisherArgs {
   content: string;
   nsec?: string;
+  publish_as?: string;
   reply_to?: string;
   mentions?: string[];
   hashtags?: string[];
@@ -14,7 +20,7 @@ interface NotePublisherArgs {
 export const publishNote: NostrTool = {
   schema: {
     name: 'nostr_publish_note',
-    description: 'Publish short notes to Nostr network using kind:1 standard with nsec for signing',
+    description: 'Publish short notes to Nostr network using kind:1 standard with local key or NIP-46 signing',
     inputSchema: {
       type: 'object',
       properties: {
@@ -23,6 +29,7 @@ export const publishNote: NostrTool = {
           description: 'The note content to publish'
         },
         ...(getNsecSchema() ? { nsec: getNsecSchema() } : {}),
+        publish_as: getPublishAsSchema(),
         reply_to: {
           type: 'string',
           description: 'Optional event ID to reply to (creates an e tag)'
@@ -48,12 +55,15 @@ export const publishNote: NostrTool = {
   
   handler: async (args: NotePublisherArgs, ndk: NDK) => {
     try {
-      const { content, nsec, reply_to, mentions, hashtags } = args;
+      const { content, nsec, publish_as, reply_to, mentions, hashtags } = args;
 
       // Create signer using utility function
-      const signer = createSigner(nsec);
+      const signer = await createSigner(ndk, {
+        nsec,
+        publishAs: publish_as,
+      });
       if (!signer) {
-        throw new Error('No signing credentials available. Please provide an nsec or set NOSTR_PRIVATE_KEY environment variable.');
+        throw new Error('No signing credentials available. Please provide nsec, set NOSTR_PRIVATE_KEY, or configure NOSTR_BUNKER_KEY/publish_as.');
       }
 
       let replyToEvent: NDKEvent | null = null;
@@ -106,9 +116,16 @@ export const publishNote: NostrTool = {
         console.error("Event", event.inspect)
         console.error("Error signing event", error)
       }
-      await event.publish();
-
-      return { content: {nevent: event.encode()} };
+      const relaySet = await event.publish();
+      const relays = [...relaySet].map(r => r.url);
+      const result = { nevent: event.encode(), relays };
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }],
+        structuredContent: result
+      };
       
     } catch (error) {
       console.error('Error publishing note:', error);
