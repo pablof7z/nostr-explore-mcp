@@ -98,17 +98,6 @@ The tool must implement the Model Context Protocol server specification to:
 
 **Output**: Collection of notifications with metadata including status information
 
-#### publish_notification(sourceEventId, agentPubkey, agentPrivkey)
-
-**Purpose**: Create and publish a notification event (kind 1616) based on a source event
-
-**Input Parameters**:
-- `sourceEventId` (string): The ID of the source event to create a notification for
-- `agentPubkey` (string): The public key of the agent creating the notification
-- `agentPrivkey` (string): The private key of the agent for signing
-
-**Output**: Published notification event details
-
 #### get_active_subscriptions()
 
 **Purpose**: List all currently active notification monitoring subscriptions
@@ -129,7 +118,6 @@ The tool must implement the Model Context Protocol server specification to:
 
 **Notification Processing**:
 - Monitor events mentioning agent public keys
-- Create kind 1616 notification events per Nostr standards
 - Maintain persistent storage of notifications for retrieval
 
 ## User Experience Requirements
@@ -153,7 +141,6 @@ The tool must implement the Model Context Protocol server specification to:
 - Must conform to MCP server protocol specifications
 - Must handle errors gracefully (network failures, invalid IDs, etc.)
 - Must support persistent notification monitoring across sessions
-- Must implement proper Nostr event signing for notification publishing
 
 ## Success Criteria
 
@@ -165,4 +152,3 @@ A successful implementation will:
 5. Return accurate, filtered results for all query types
 6. Handle various ID formats appropriately
 7. Maintain persistent notification monitoring
-8. Successfully publish signed notification events

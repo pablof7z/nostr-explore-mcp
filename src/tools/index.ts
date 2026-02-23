@@ -2,7 +2,6 @@ import { getConversationTool } from "./getConversation.js";
 import {
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    publishNotificationTool,
     initializeSubscriptionManager
 } from "./notifications.js";
 import { NostrTool } from "./types.js";
@@ -15,7 +14,6 @@ const tools: NostrTool[] = [
     getConversationTool,
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    publishNotificationTool,
     conversationTracker,
     publishArticle,
     publishNote,
@@ -32,7 +30,6 @@ export {
     getConversationTool,
     startNotificationMonitoringTool,
     stopNotificationMonitoringTool,
-    publishNotificationTool,
     conversationTracker,
     publishArticle,
     publishNote,

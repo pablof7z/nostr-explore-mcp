@@ -11,7 +11,7 @@ export function buildNotificationEvent(
   return {
     pubkey: agentPubkey,
     created_at: Math.floor(Date.now() / 1000),
-    kind: 1616,
+    kind: metadata.sourceEventKind,
     tags: [
       ["e", metadata.sourceEventId],
       ["p", metadata.sourceAuthorPubkey],

@@ -10,7 +10,7 @@ export interface NotificationEvent {
   id?: string;
   pubkey: string;
   created_at: number;
-  kind: 1616;
+  kind: number;
   tags: string[][];
   content: string;
   sig?: string;

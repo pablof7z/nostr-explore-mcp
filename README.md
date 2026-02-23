@@ -24,7 +24,6 @@ This MCP server provides tools and resources for:
 ### Notification Management
 - **Monitor mentions** - Track when specific pubkeys are mentioned across the network
 - **Store notifications** - Retrieve and manage notifications for monitored agents
-- **Publish notification events** - Create notification events based on source events
 
 ### Real-time Resources
 - **Event Feed Subscription** - Subscribe to real-time Nostr event streams from specific users with optional filtering
@@ -161,7 +160,6 @@ The server provides the following tools:
 - `start_notification_monitoring` - Start monitoring mentions for a specific pubkey
 - `stop_notification_monitoring` - Stop monitoring for a specific pubkey
 - `get_notifications` - Retrieve stored notifications
-- `publish_notification` - Create and publish notification events
 
 ## Available Resources
 
